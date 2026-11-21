@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#7c3aed" />
     <title>To-Do List</title>
+    <script>
+      (() => {
+        const savedTheme = localStorage.getItem("todo-app-theme");
+        const theme = savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -14,7 +23,12 @@
           <p class="eyebrow">Today</p>
           <h1 id="app-title">My Tasks</h1>
         </div>
-        <span id="task-count" class="task-count">0 tasks</span>
+        <div class="header-actions">
+          <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" title="Switch theme">
+            <span class="theme-icon" aria-hidden="true">☀️</span>
+          </button>
+          <span id="task-count" class="task-count">0 tasks</span>
+        </div>
       </header>
 
       <form id="task-form" class="task-form" autocomplete="off">

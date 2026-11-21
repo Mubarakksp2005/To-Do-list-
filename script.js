@@ -1,4 +1,5 @@
 const STORAGE_KEY = "todo-app-tasks";
+const THEME_KEY = "todo-app-theme";
 
 const taskForm = document.querySelector("#task-form");
 const taskInput = document.querySelector("#task-input");
@@ -6,6 +7,9 @@ const taskList = document.querySelector("#task-list");
 const taskCount = document.querySelector("#task-count");
 const emptyState = document.querySelector("#empty-state");
 const filterButtons = document.querySelectorAll(".filter");
+const themeToggle = document.querySelector("#theme-toggle");
+const themeIcon = themeToggle?.querySelector(".theme-icon");
+const themeMeta = document.querySelector('meta[name="theme-color"]');
 
 let tasks = loadTasks();
 let activeFilter = "all";
@@ -55,6 +59,37 @@ function flushTasks() {
     saveTimer = null;
   }
 }
+
+function getTheme() {
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+
+function updateThemeControls() {
+  const isDark = getTheme() === "dark";
+  if (themeToggle) {
+    themeToggle.setAttribute("aria-label", `Switch to ${isDark ? "light" : "dark"} theme`);
+    themeToggle.title = `Switch to ${isDark ? "light" : "dark"} theme`;
+  }
+  if (themeIcon) themeIcon.textContent = isDark ? "🌙" : "☀️";
+  if (themeMeta) themeMeta.setAttribute("content", isDark ? "#16131d" : "#7c3aed");
+}
+
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem(THEME_KEY, theme);
+  updateThemeControls();
+}
+
+themeToggle?.addEventListener("click", () => {
+  setTheme(getTheme() === "dark" ? "light" : "dark");
+});
+
+const systemTheme = matchMedia("(prefers-color-scheme: dark)");
+systemTheme.addEventListener?.("change", (event) => {
+  if (!localStorage.getItem(THEME_KEY)) {
+    setTheme(event.matches ? "dark" : "light");
+  }
+});
 
 function createTaskElement(task) {
   const item = document.createElement("li");
@@ -184,4 +219,5 @@ filterButtons.forEach((button) => {
 
 window.addEventListener("pagehide", flushTasks);
 
+updateThemeControls();
 render();
