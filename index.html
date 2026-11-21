@@ -44,6 +44,23 @@
         <button type="submit" aria-label="Add task">+</button>
       </form>
 
+      <div class="task-tools">
+        <label class="search-field" for="task-search">
+          <span class="sr-only">Search tasks</span>
+          <input id="task-search" type="search" placeholder="Search tasks..." autocomplete="off" />
+        </label>
+        <label class="sort-field" for="task-sort">
+          <span class="sr-only">Sort tasks</span>
+          <select id="task-sort">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="alphabetical">A–Z</option>
+            <option value="active">Active first</option>
+            <option value="completed">Completed first</option>
+          </select>
+        </label>
+      </div>
+
       <div class="filters" role="group" aria-label="Filter tasks">
         <button class="filter is-active" type="button" data-filter="all">All</button>
         <button class="filter" type="button" data-filter="active">Active</button>

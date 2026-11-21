@@ -3,6 +3,8 @@ const THEME_KEY = "todo-app-theme";
 
 const taskForm = document.querySelector("#task-form");
 const taskInput = document.querySelector("#task-input");
+const taskSearch = document.querySelector("#task-search");
+const taskSort = document.querySelector("#task-sort");
 const taskList = document.querySelector("#task-list");
 const taskCount = document.querySelector("#task-count");
 const emptyState = document.querySelector("#empty-state");
@@ -13,6 +15,8 @@ const themeMeta = document.querySelector('meta[name="theme-color"]');
 
 let tasks = loadTasks();
 let activeFilter = "all";
+let searchQuery = "";
+let sortMode = "newest";
 let saveTimer = null;
 
 function loadTasks() {
@@ -23,12 +27,9 @@ function loadTasks() {
     const parsedTasks = JSON.parse(storedTasks);
     if (!Array.isArray(parsedTasks)) return [];
 
-    return parsedTasks.filter((task) =>
-      task &&
-      typeof task.id === "string" &&
-      typeof task.text === "string" &&
-      typeof task.completed === "boolean",
-    );
+    return parsedTasks
+      .filter((task) => task && typeof task.id === "string" && typeof task.text === "string" && typeof task.completed === "boolean")
+      .map((task) => ({ createdAt: typeof task.createdAt === "number" ? task.createdAt : 0, ...task }));
   } catch (error) {
     console.error("Could not load saved tasks:", error);
     return [];
@@ -86,9 +87,7 @@ themeToggle?.addEventListener("click", () => {
 
 const systemTheme = matchMedia("(prefers-color-scheme: dark)");
 systemTheme.addEventListener?.("change", (event) => {
-  if (!localStorage.getItem(THEME_KEY)) {
-    setTheme(event.matches ? "dark" : "light");
-  }
+  if (!localStorage.getItem(THEME_KEY)) setTheme(event.matches ? "dark" : "light");
 });
 
 function createTaskElement(task) {
@@ -116,24 +115,36 @@ function createTaskElement(task) {
 }
 
 function getVisibleTasks() {
-  if (activeFilter === "active") return tasks.filter((task) => !task.completed);
-  if (activeFilter === "completed") return tasks.filter((task) => task.completed);
-  return tasks;
+  let visibleTasks = tasks;
+
+  if (activeFilter === "active") visibleTasks = visibleTasks.filter((task) => !task.completed);
+  if (activeFilter === "completed") visibleTasks = visibleTasks.filter((task) => task.completed);
+
+  const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
+  if (normalizedQuery) {
+    visibleTasks = visibleTasks.filter((task) => task.text.toLocaleLowerCase().includes(normalizedQuery));
+  }
+
+  const sortedTasks = [...visibleTasks];
+  sortedTasks.sort((first, second) => {
+    if (sortMode === "oldest") return first.createdAt - second.createdAt;
+    if (sortMode === "alphabetical") return first.text.localeCompare(second.text, undefined, { sensitivity: "base" });
+    if (sortMode === "active") return Number(second.completed) - Number(first.completed);
+    if (sortMode === "completed") return Number(first.completed) - Number(second.completed);
+    return second.createdAt - first.createdAt;
+  });
+
+  return sortedTasks;
 }
 
 function render() {
   const visibleTasks = getVisibleTasks();
   let remaining = 0;
-
-  for (const task of tasks) {
-    if (!task.completed) remaining += 1;
-  }
+  for (const task of tasks) if (!task.completed) remaining += 1;
 
   taskCount.textContent = `${remaining} ${remaining === 1 ? "task" : "tasks"}`;
 
-  const existingItems = new Map(
-    Array.from(taskList.children, (item) => [item.dataset.id, item]),
-  );
+  const existingItems = new Map(Array.from(taskList.children, (item) => [item.dataset.id, item]));
   const visibleIds = new Set();
 
   visibleTasks.forEach((task, index) => {
@@ -144,10 +155,7 @@ function render() {
       item = createTaskElement(task);
     } else {
       item.className = `task-item${task.completed ? " is-completed" : ""}`;
-      item.querySelector(".task-toggle").setAttribute(
-        "aria-label",
-        task.completed ? "Mark active" : "Mark complete",
-      );
+      item.querySelector(".task-toggle").setAttribute("aria-label", task.completed ? "Mark active" : "Mark complete");
       item.querySelector(".task-text").textContent = task.text;
     }
 
@@ -155,20 +163,18 @@ function render() {
     if (currentItem !== item) taskList.insertBefore(item, currentItem || null);
   });
 
-  for (const [id, item] of existingItems) {
-    if (!visibleIds.has(id)) item.remove();
-  }
+  for (const [id, item] of existingItems) if (!visibleIds.has(id)) item.remove();
 
   emptyState.hidden = visibleTasks.length > 0;
-  emptyState.textContent =
-    activeFilter === "all"
+  emptyState.textContent = searchQuery.trim()
+    ? `No tasks match “${searchQuery.trim()}”.`
+    : activeFilter === "all"
       ? "No tasks yet. Add one above!"
       : `No ${activeFilter} tasks.`;
 }
 
 taskForm.addEventListener("submit", (event) => {
   event.preventDefault();
-
   const text = taskInput.value.trim();
   if (!text) return;
 
@@ -176,12 +182,23 @@ taskForm.addEventListener("submit", (event) => {
     id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     text,
     completed: false,
+    createdAt: Date.now(),
   });
 
   taskInput.value = "";
   saveTasks();
   render();
   taskInput.focus();
+});
+
+taskSearch.addEventListener("input", () => {
+  searchQuery = taskSearch.value;
+  render();
+});
+
+taskSort.addEventListener("change", () => {
+  sortMode = taskSort.value;
+  render();
 });
 
 taskList.addEventListener("click", (event) => {
@@ -193,7 +210,6 @@ taskList.addEventListener("click", (event) => {
   if (!task) return;
 
   let changed = false;
-
   if (event.target.closest(".task-toggle")) {
     task.completed = !task.completed;
     changed = true;
