@@ -36,10 +36,24 @@ function saveTasks() {
   saveTimer = setTimeout(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      saveTimer = null;
     } catch (error) {
       console.error("Could not save tasks:", error);
+      saveTimer = null;
     }
   }, 150);
+}
+
+function flushTasks() {
+  if (!saveTimer) return;
+  clearTimeout(saveTimer);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  } catch (error) {
+    console.error("Could not save tasks:", error);
+  } finally {
+    saveTimer = null;
+  }
 }
 
 function createTaskElement(task) {
@@ -118,13 +132,13 @@ function render() {
 }
 
 taskForm.addEventListener("submit", (event) => {
-  event.preventEvent;
+  event.preventDefault();
 
   const text = taskInput.value.trim();
   if (!text) return;
 
   tasks.unshift({
-    id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now()),
+    id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     text,
     completed: false,
   });
@@ -168,15 +182,6 @@ filterButtons.forEach((button) => {
   });
 });
 
-window.addEventListener("pagehide", () => {
-  if (saveTimer) {
-    clearTimeout(saveTimer);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-    } catch (error) {
-      console.error("Could not save tasks:", error);
-    }
-  }
-});
+window.addEventListener("pagehide", flushTasks);
 
 render();
